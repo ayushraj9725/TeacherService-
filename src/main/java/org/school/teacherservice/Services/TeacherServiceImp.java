@@ -1,14 +1,17 @@
 package org.school.teacherservice.Services;
 
+import lombok.RequiredArgsConstructor;
 import org.school.teacherservice.DTOs.School;
 import org.school.teacherservice.DTOs.SchoolResponseDto;
 import org.school.teacherservice.DTOs.TeacherRequestDto;
 import org.school.teacherservice.DTOs.TeacherResponseDto;
+import org.school.teacherservice.InteractionClientFeign.TeacherFeignClient;
 import org.school.teacherservice.Models.Teacher;
 import org.school.teacherservice.Repository.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -17,13 +20,13 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class TeacherServiceImp implements TeacherService{
 
     @Autowired
     private TeacherRepository teacherRepository;
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final TeacherFeignClient teacherFeignClient;
 
     @Override
     public TeacherResponseDto addTeacher(TeacherRequestDto teacherRequestDto) {
@@ -43,11 +46,9 @@ public class TeacherServiceImp implements TeacherService{
             Teacher teacher1 = teacherRepository.save(teacher);
 
             // we want to call the school microservice
-            School school = restTemplate.getForObject("http://SCHOOL-SERVICE/api/v1/school/" + teacher1.getSchoolId(), School.class);
+            School school = teacherFeignClient.getSchoolInfo(teacher1.getSchoolId());
 
-            TeacherResponseDto responseByTeacherDto = TeacherResponseDto.fromTeacher(teacher1,school);
-
-            return responseByTeacherDto;
+            return TeacherResponseDto.fromTeacher(teacher1,school);
 
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
@@ -62,7 +63,7 @@ public class TeacherServiceImp implements TeacherService{
         try{
             if(!teachers.isEmpty()){
                 for(Teacher teacher : teachers){
-                    School school = restTemplate.getForObject("http://SCHOOL-SERVICE/api/v1/school/" + teacher.getSchoolId(), School.class);
+                    School school = teacherFeignClient.getSchoolInfo(teacher.getSchoolId());
                     TeacherResponseDto teacherResponseDto = TeacherResponseDto.builder()
                             .id(teacher.getId())
                             .name(teacher.getName())
@@ -93,7 +94,7 @@ public class TeacherServiceImp implements TeacherService{
 
         try{
             if (teacher.isPresent()) {
-                School school = restTemplate.getForObject("http://SCHOOL-SERVICE/api/v1/school/" + teacher.get().getSchoolId(), School.class);
+                School school = teacherFeignClient.getSchoolInfo(teacher.get().getSchoolId());
                 TeacherResponseDto teacherResponseDto = TeacherResponseDto.builder()
                         .id(teacher.get().getId())
                         .name(teacher.get().getName())
